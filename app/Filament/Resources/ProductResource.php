@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\ProductResource\Pages;
 use App\Filament\Resources\ProductResource\RelationManagers;
 use App\Models\Product;
+use Filament\Resources\Pages\Page;
 use Filament\Forms;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Form;
@@ -12,19 +13,26 @@ use Filament\Forms\Components\Grid;
 use Filament\Resources\Resource;
 use Filament\Tables\Table;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Tables;
 use Filament\Forms\Components\RichEditor;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Illuminate\Database\Eloquent\Builder;
+use Filament\Tables\Columns\SpatieMediaLibraryImageColumn;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Enums\Enums\ProductStatusEnum;
+use App\Filament\Resources\ProductResource\Pages\ProductImages;
+use App\Filament\Resources\ProductResource\Pages\EditProduct;
+use Filament\Pages\SubNavigationPosition;
+
 
 class ProductResource extends Resource
 {
     protected static ?string $model = Product::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static SubNavigationPosition $subNavigationPosition = SubNavigationPosition::End;
 
     public static function form(Form $form): Form
     {
@@ -117,10 +125,47 @@ class ProductResource extends Resource
     {
         return $table
             ->columns([
-                //
+                SpatieMediaLibraryImageColumn::make('images')
+                    ->collection('images')
+                    ->label('Image')
+                    ->limit(1)
+                    ->conversion('thumb'),
+
+                TextColumn::make('title')
+                    ->sortable()
+                    ->searchable()
+                    ->limit(50),
+                TextColumn::make('status')
+                    ->badge()
+                    ->colors(ProductStatusEnum::colors()),
+                TextColumn::make('department.name')
+                    ->label('Department')
+                    ->searchable(),
+                TextColumn::make('category.name')
+                    ->label('Category')
+                    ->searchable(),
+                TextColumn::make('price')
+                    ->sortable()
+                    ->searchable()
+                    ->money('PHP', true)
+                    ->formatStateUsing(fn ($state) => number_format($state, 2)),
+
             ])
             ->filters([
-                //
+                SelectFilter::make('status')
+                    ->options(ProductStatusEnum::label())
+                    ->default(ProductStatusEnum::Draft->value)
+                    ->placeholder('Select Status')
+                    ->multiple(),
+                SelectFilter::make('department_id')
+                    ->relationship('department', 'name')
+                    ->placeholder('Select Department'),
+                SelectFilter::make('category_id')
+                    ->relationship('category', 'name')
+                    ->placeholder('Select Category')
+                    ->multiple(),
+         
+                
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
@@ -145,6 +190,15 @@ class ProductResource extends Resource
             'index' => Pages\ListProducts::route('/'),
             'create' => Pages\CreateProduct::route('/create'),
             'edit' => Pages\EditProduct::route('/{record}/edit'),
+            'images' => Pages\ProductImages::route('/{record}/images'), 
         ];
+    }
+
+    public static function getRecordSubNavigation(Page $page): array 
+    {
+        return $page -> generateNavigationItems([
+                EditProduct::class,
+                ProductImages::class,        
+        ]);
     }
 }
